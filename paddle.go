@@ -23,16 +23,15 @@ type Config struct {
 	WebhookSecretKey string
 }
 
-type ProductService service
-type SubscriptionService service
-
 type Client struct {
 	client  *http.Client
 	cfg     *Config
-	baseURL *url.URL
+	baseURL string
 
-	Subscriptions *SubscriptionService
-	Products      *ProductService
+	Customers     *CustomersService
+	Subscriptions *SubscriptionsService
+	Products      *ProductsService
+	Prices        *PricesService
 }
 
 type service struct {
@@ -46,15 +45,17 @@ func (conf *Config) NewClient(client *http.Client) *Client {
 	}
 
 	if conf.Sandbox {
-		c.baseURL, _ = url.Parse(sandboxApiBaseURL)
+		c.baseURL = sandboxApiBaseURL
 	} else {
-		c.baseURL, _ = url.Parse(apiBaseURL)
+		c.baseURL = apiBaseURL
 	}
 
 	s := &service{client: c}
 
-	c.Subscriptions = (*SubscriptionService)(s)
-	c.Products = (*ProductService)(s)
+	c.Customers = (*CustomersService)(s)
+	c.Subscriptions = (*SubscriptionsService)(s)
+	c.Products = (*ProductsService)(s)
+	c.Prices = (*PricesService)(s)
 
 	return c
 }
@@ -64,15 +65,15 @@ func (c *Client) TestAuthentication(ctx context.Context) error {
 	if reqErr != nil {
 		return reqErr
 	}
-	_, resErr := c.Do(ctx, req, nil)
+	_, resErr := c.Do(ctx, req)
 	if resErr != nil {
 		return resErr
 	}
 	return nil
 }
 
-func (c *Client) NewRequest(method, path string, body any) (*http.Request, error) {
-	endpoint, parseErr := c.baseURL.Parse(path)
+func (c *Client) NewRequest(method string, path string, body any) (*http.Request, error) {
+	endpoint, parseErr := url.Parse(c.baseURL + path)
 	if parseErr != nil {
 		return nil, parseErr
 	}
@@ -100,7 +101,41 @@ func (c *Client) NewRequest(method, path string, body any) (*http.Request, error
 	return req, nil
 }
 
-func (c *Client) Do(ctx context.Context, req *http.Request, v any) (*http.Response, error) {
+type ApiResponseMetaPagination struct {
+	PerPage        int    `json:"per_page"`
+	Next           string `json:"next"`
+	HasMore        bool   `json:"has_more"`
+	EstimatedTotal int    `json:"estimated_total"`
+}
+
+type ApiResponseMeta struct {
+	RequestId  string                    `json:"request_id"`
+	Pagination ApiResponseMetaPagination `json:"pagination,omitempty"`
+}
+
+type ErrorType string
+
+const (
+	ErrorTypeRequest = ErrorType("request_error")
+	ErrorTypeApi     = ErrorType("api_error")
+)
+
+type ApiError struct {
+	res *http.Response
+
+	Type             ErrorType `json:"type"`
+	Code             string    `json:"code"`
+	Detail           string    `json:"detail"`
+	DocumentationUrl string    `json:"documentation_url"`
+}
+
+type ApiResponse struct {
+	Data  json.RawMessage `json:"data"`
+	Error *ApiError       `json:"error,omitempty"`
+	Meta  ApiResponseMeta `json:"meta"`
+}
+
+func (c *Client) Do(ctx context.Context, req *http.Request) (*ApiResponse, error) {
 	resp, respErr := c.client.Do(req)
 
 	// HTTP status codes do not contribute to a response error
@@ -130,52 +165,26 @@ func (c *Client) Do(ctx context.Context, req *http.Request, v any) (*http.Respon
 		return nil, readErr
 	}
 
-	if err := checkError(resp, data); err != nil {
-		return resp, err
+	res := &ApiResponse{}
+	if err := json.Unmarshal(data, res); err != nil {
+		return nil, fmt.Errorf("err=%v, data=%v", err, string(data))
 	}
 
-	if v != nil {
-		if err := json.Unmarshal(data, v); err != nil {
-			return resp, fmt.Errorf("err=%v, data=%v", err, string(data))
-		}
+	if res.Error != nil {
+		res.Error.res = resp
+		return nil, res.Error
 	}
 
-	return resp, nil
+	return res, nil
 }
 
-type ErrorType string
-
-const (
-	ErrorTypeRequest = ErrorType("request_error")
-	ErrorTypeApi     = ErrorType("api_error")
-)
-
-type Error struct {
-	Type             ErrorType `json:"type"`
-	Code             string    `json:"code"`
-	Detail           string    `json:"detail"`
-	DocumentationUrl string    `json:"documentation_url"`
-}
-
-type ErrorResponse struct {
-	response *http.Response
-
-	ErrorDetails *Error `json:"error"`
-	Meta         struct {
-		RequestId string `json:"request_id"`
-	} `json:"meta"`
-}
-
-func (r *ErrorResponse) Error() string {
-	if r.ErrorDetails == nil {
-		res := r.response
-		return fmt.Sprintf("[%v %v] HTTP %d: unknown api error", res.Request.Method, res.Request.URL.Path, res.StatusCode)
-	}
+func (e *ApiError) Error() string {
+	res := e.res
 	return fmt.Sprintf("[%v %v] HTTP %d '%s': %s",
-		r.response.Request.Method, r.response.Request.URL.Path,
-		r.response.StatusCode, r.ErrorDetails.Code, r.ErrorDetails.Detail)
+		res.Request.Method, res.Request.URL.Path, res.StatusCode, e.Code, e.Detail)
 }
 
+/*
 func checkError(r *http.Response, data []byte) error {
 	if r.StatusCode < http.StatusBadRequest {
 		return nil
@@ -188,3 +197,4 @@ func checkError(r *http.Response, data []byte) error {
 	}
 	return errRes
 }
+*/
