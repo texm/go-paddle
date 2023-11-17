@@ -2,6 +2,8 @@ package paddle
 
 import (
 	"context"
+	"net/url"
+	"strings"
 	"time"
 )
 
@@ -19,8 +21,28 @@ type Customer struct {
 	UpdatedAt        time.Time       `json:"updated_at"`
 }
 
-func (c *CustomersService) List(ctx context.Context) ([]*Customer, error) {
-	return listItems[Customer](ctx, c.client, "customers")
+type ListCustomersParams struct {
+	Ids    []string
+	Status []Status
+	Search string
+}
+
+func (c *CustomersService) List(ctx context.Context, params *ListCustomersParams) ([]*Customer, error) {
+	endpoint := "customers"
+	if params != nil {
+		q := url.Values{}
+		if len(params.Ids) > 0 {
+			q.Set("id", strings.Join(params.Ids, ","))
+		}
+		if len(params.Status) > 0 {
+			q.Set("status", strings.Join(params.Ids, ","))
+		}
+		if len(params.Search) > 0 {
+			q.Set("search", params.Search)
+		}
+		endpoint += "?" + q.Encode()
+	}
+	return listItems[Customer](ctx, c.client, endpoint)
 }
 
 func (c *CustomersService) Get(ctx context.Context, id string) (*Customer, error) {

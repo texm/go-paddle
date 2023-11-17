@@ -2,6 +2,8 @@ package paddle
 
 import (
 	"context"
+	"net/url"
+	"strings"
 	"time"
 )
 
@@ -87,8 +89,29 @@ type Subscription struct {
 	ManagementUrls       SubscriptionManagementUrls   `json:"management_urls"`
 }
 
-func (s *SubscriptionsService) List(ctx context.Context) ([]*Subscription, error) {
-	return listItems[Subscription](ctx, s.client, "subscriptions")
+type ListSubscriptionsParams struct {
+	Ids            []string
+	CollectionMode string
+	Status         []Status
+	Search         string
+}
+
+func (s *SubscriptionsService) List(ctx context.Context, params *ListSubscriptionsParams) ([]*Subscription, error) {
+	endpoint := "subscriptions"
+	if params != nil {
+		q := url.Values{}
+		if len(params.Ids) > 0 {
+			q.Set("id", strings.Join(params.Ids, ","))
+		}
+		if len(params.Status) > 0 {
+			q.Set("status", strings.Join(params.Ids, ","))
+		}
+		if len(params.Search) > 0 {
+			q.Set("search", params.Search)
+		}
+		endpoint += "?" + q.Encode()
+	}
+	return listItems[Subscription](ctx, s.client, endpoint)
 }
 
 func (s *SubscriptionsService) Get(ctx context.Context, id string) (*Subscription, error) {

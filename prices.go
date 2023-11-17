@@ -2,6 +2,9 @@ package paddle
 
 import (
 	"context"
+	"fmt"
+	"net/url"
+	"strings"
 )
 
 type PricesService service
@@ -32,8 +35,52 @@ type Price struct {
 	Product            *Product                `json:"product"`
 }
 
-func (s *PricesService) List(ctx context.Context) ([]*Price, error) {
-	return listItems[Price](ctx, s.client, "prices")
+type ListPricesParams struct {
+	IncludeProduct        bool
+	Ids                   []string
+	CustomerIds           []string
+	AddressIds            []string
+	CollectionMode        string
+	ScheduledChangeAction []SubscriptionScheduledChangeAction
+	Status                []SubscriptionStatus
+}
+
+func toStringSlice[T any](items []T) []string {
+	strs := make([]string, len(items))
+	for i, item := range items {
+		strs[i] = fmt.Sprintf("%v", item)
+	}
+	return strs
+}
+
+func (s *PricesService) List(ctx context.Context, params *ListPricesParams) ([]*Price, error) {
+	endpoint := "prices"
+	if params != nil {
+		q := url.Values{}
+		if params.IncludeProduct {
+			q.Set("include", "product")
+		}
+		if len(params.Ids) > 0 {
+			q.Set("id", strings.Join(params.Ids, ","))
+		}
+		if len(params.CustomerIds) > 0 {
+			q.Set("customer_id", strings.Join(params.CustomerIds, ","))
+		}
+		if len(params.AddressIds) > 0 {
+			q.Set("address_id", strings.Join(params.AddressIds, ","))
+		}
+		if len(params.CollectionMode) > 0 {
+			q.Set("collection_mode", params.CollectionMode)
+		}
+		if len(params.ScheduledChangeAction) > 0 {
+			q.Set("scheduled_change_action", strings.Join(toStringSlice(params.ScheduledChangeAction), ","))
+		}
+		if len(params.Status) > 0 {
+			q.Set("status", strings.Join(toStringSlice(params.Status), ","))
+		}
+		endpoint += "?" + q.Encode()
+	}
+	return listItems[Price](ctx, s.client, endpoint)
 }
 
 func (s *PricesService) Get(ctx context.Context, id string, includeProduct bool) (*Price, error) {
