@@ -35,6 +35,7 @@ type Client struct {
 	Subscriptions *SubscriptionsService
 	Products      *ProductsService
 	Prices        *PricesService
+	Transactions  *TransactionsService
 }
 
 type service struct {
@@ -65,6 +66,7 @@ func NewClient(cfg *Config) *Client {
 	c.Subscriptions = (*SubscriptionsService)(s)
 	c.Products = (*ProductsService)(s)
 	c.Prices = (*PricesService)(s)
+	c.Transactions = (*TransactionsService)(s)
 
 	return c
 }
