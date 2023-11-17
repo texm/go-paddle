@@ -16,6 +16,13 @@ type TimeInterval struct {
 	Interval  TimePeriodInterval `json:"interval"`
 }
 
+type PaymentCollectionMode string
+
+const (
+	PaymentCollectionModeAutomatic = PaymentCollectionMode("automatic")
+	PaymentCollectionModeManual    = PaymentCollectionMode("manual")
+)
+
 type Status string
 
 const (

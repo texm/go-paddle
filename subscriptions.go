@@ -10,7 +10,6 @@ import (
 type SubscriptionsService service
 
 type SubscriptionStatus string
-type SubscriptionCollectionMode string
 type SubscriptionScheduledChangeAction string
 
 const (
@@ -19,9 +18,6 @@ const (
 	SubscriptionStatusPastDue  = SubscriptionStatus("past_due")
 	SubscriptionStatusPaused   = SubscriptionStatus("paused")
 	SubscriptionStatusTrialing = SubscriptionStatus("trialing")
-
-	SubscriptionCollectionModeAutomatic = SubscriptionCollectionMode("automatic")
-	SubscriptionCollectionModeManual    = SubscriptionCollectionMode("manual")
 
 	SubscriptionScheduledChangeActionCancel = SubscriptionScheduledChangeAction("cancel")
 	SubscriptionScheduledChangeActionPause  = SubscriptionScheduledChangeAction("pause")
@@ -79,7 +75,7 @@ type Subscription struct {
 	PausedAt             time.Time                    `json:"paused_at"`
 	CanceledAt           time.Time                    `json:"canceled_at"`
 	Discount             *SubscriptionDiscount        `json:"discount"`
-	CollectionMode       string                       `json:"collection_mode"`
+	CollectionMode       PaymentCollectionMode        `json:"collection_mode"`
 	BillingDetails       *SubscriptionBillingDetails  `json:"billing_details"`
 	CurrentBillingPeriod *TimePeriod                  `json:"current_billing_period"`
 	BillingCycle         TimeInterval                 `json:"billing_cycle"`
