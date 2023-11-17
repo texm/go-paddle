@@ -18,7 +18,7 @@ type Product struct {
 	CustomData  *map[string]any `json:"custom_data"`
 	Status      Status          `json:"status"`
 	CreatedAt   time.Time       `json:"created_at"`
-	Prices      *[]Price        `json:"prices"`
+	Prices      *[]*Price       `json:"prices"`
 }
 
 type ListProductsParams struct {
