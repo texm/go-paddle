@@ -17,16 +17,19 @@ const (
 )
 
 type Config struct {
-	Sandbox bool
+	Sandbox    bool
+	HttpClient *http.Client
 
 	APIKey           string
 	WebhookSecretKey string
 }
 
 type Client struct {
-	client  *http.Client
-	cfg     *Config
-	baseURL string
+	client     *http.Client
+	cfg        *Config
+	baseURL    string
+	apiKey     string
+	webhookKey []byte
 
 	Customers     *CustomersService
 	Subscriptions *SubscriptionsService
@@ -38,13 +41,19 @@ type service struct {
 	client *Client
 }
 
-func (conf *Config) NewClient(client *http.Client) *Client {
-	c := &Client{
-		client: client,
-		cfg:    conf,
+func NewClient(cfg *Config) *Client {
+	if cfg.HttpClient == nil {
+		cfg.HttpClient = http.DefaultClient
 	}
 
-	if conf.Sandbox {
+	c := &Client{
+		client:     cfg.HttpClient,
+		cfg:        cfg,
+		apiKey:     cfg.APIKey,
+		webhookKey: []byte(cfg.WebhookSecretKey),
+	}
+
+	if cfg.Sandbox {
 		c.baseURL = sandboxApiBaseURL
 	} else {
 		c.baseURL = apiBaseURL
