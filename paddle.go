@@ -178,7 +178,7 @@ func (c *Client) Do(ctx context.Context, req *http.Request) (*ApiResponse, error
 
 	res := &ApiResponse{}
 	if jsonErr := json.Unmarshal(data, res); jsonErr != nil {
-		return nil, fmt.Errorf("failed to unmarshal body: %w", jsonErr)
+		return nil, fmt.Errorf("http %d: failed to read response: %w", resp.StatusCode, jsonErr)
 	}
 
 	if res.Error != nil {
