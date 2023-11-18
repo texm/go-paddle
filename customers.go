@@ -67,6 +67,6 @@ type UpdateCustomerParams struct {
 	Locale     *string         `json:"locale,omitempty"`
 }
 
-func (c *CustomersService) Update(ctx context.Context, params *UpdateCustomerParams) (*Customer, error) {
-	return patchItem[Customer](ctx, c.client, "customers", params)
+func (c *CustomersService) Update(ctx context.Context, id string, params *UpdateCustomerParams) (*Customer, error) {
+	return patchItem[Customer](ctx, c.client, "customers/"+id, params)
 }
