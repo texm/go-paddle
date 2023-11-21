@@ -113,3 +113,29 @@ func (s *SubscriptionsService) List(ctx context.Context, params *ListSubscriptio
 func (s *SubscriptionsService) Get(ctx context.Context, id string) (*Subscription, error) {
 	return getItem[Subscription](ctx, s.client, "subscriptions/"+id)
 }
+
+type SubscriptionEffectFromOption string
+
+const (
+	SubscriptionEffectFromOptionImmediately       = SubscriptionEffectFromOption("immediately")
+	SubscriptionEffectFromOptionNextBillingPeriod = SubscriptionEffectFromOption("next_billing_period")
+)
+
+type CancelSubscriptionParams struct {
+	EffectiveFrom SubscriptionEffectFromOption `json:"effective_from"`
+}
+
+func (s *SubscriptionsService) Cancel(ctx context.Context, id string, params *CancelSubscriptionParams) (*Subscription, error) {
+	return postItem[Subscription](ctx, s.client, "subscriptions/"+id+"/cancel", params)
+}
+
+func (s *SubscriptionsService) RemoveScheduledCancellation(ctx context.Context, id string) (*Subscription, error) {
+	body := struct {
+		ScheduledChange *any `json:"scheduled_change"`
+	}{}
+	return patchItem[Subscription](ctx, s.client, "subscriptions/"+id, body)
+}
+
+func (s *SubscriptionsService) GetUpdatePaymentMethodTransaction(ctx context.Context, id string) (*Transaction, error) {
+	return getItem[Transaction](ctx, s.client, "subscriptions/"+id+"/update-payment-method-transaction")
+}

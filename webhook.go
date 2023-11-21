@@ -4,32 +4,54 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
+	"time"
 )
 
 var (
 	ErrInvalidHeader    = errors.New("invalid header")
 	ErrInvalidSignature = errors.New("invalid webhook signature")
+)
 
+const (
 	MaxWebhookBodyBytes = int64(65536)
 )
 
-func (c *Client) VerifyWebhookRequest(req *http.Request) error {
-	sig, providedErr := getWebhookSignature(req.Header.Get("Paddle-Signature"))
+type WebhookEvent struct {
+	Id             string          `json:"event_id"`
+	Type           string          `json:"event_type"`
+	OccurredAt     time.Time       `json:"occurred_at"`
+	NotificationId string          `json:"notification_id"`
+	Data           json.RawMessage `json:"data"`
+}
+
+func (c *Client) ParseWebhook(req *http.Request) (*WebhookEvent, error) {
+	sigHeader := req.Header.Get("Paddle-Signature")
+	sig, providedErr := getWebhookSignature(sigHeader)
 	if providedErr != nil {
-		return providedErr
+		return nil, providedErr
 	}
 
 	body, bodyErr := getBody(req)
 	if bodyErr != nil {
-		return fmt.Errorf("failed to read body: %w", bodyErr)
+		return nil, fmt.Errorf("failed to read body: %w", bodyErr)
 	}
 
-	return sig.validate(c.webhookKey, body)
+	if validationErr := sig.validate(c.webhookKey, body); validationErr != nil {
+		return nil, validationErr
+	}
+
+	var event *WebhookEvent
+	if jsonErr := json.Unmarshal(body, event); jsonErr != nil {
+		return nil, jsonErr
+	}
+
+	return event, nil
 }
 
 type signature struct {
