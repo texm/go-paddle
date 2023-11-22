@@ -23,7 +23,7 @@ type Price struct {
 	Id                 string                  `json:"id"`
 	ProductId          string                  `json:"product_id"`
 	Description        string                  `json:"description"`
-	Name               *string                 `json:"name"`
+	Name               string                  `json:"name"`
 	BillingCycle       *TimeInterval           `json:"billing_cycle"`
 	TrialPeriod        *TimeInterval           `json:"trial_period"`
 	TaxMode            string                  `json:"tax_mode"`

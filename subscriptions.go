@@ -24,6 +24,16 @@ const (
 	SubscriptionScheduledChangeActionResume = SubscriptionScheduledChangeAction("resume")
 )
 
+type ProrationBillingMode string
+
+const (
+	ProrationBillingModeProratedImmediately       = ProrationBillingMode("prorated_immediately")
+	ProrationBillingModeProratedNextBillingPeriod = ProrationBillingMode("prorated_next_billing_period")
+	ProrationBillingModeFullImmediately           = ProrationBillingMode("full_immediately")
+	ProrationBillingModeFullNextBillingPeriod     = ProrationBillingMode("full_next_billing_period")
+	ProrationBillingModeDoNotBill                 = ProrationBillingMode("do_not_bill")
+)
+
 type SubscriptionDiscount struct {
 	Id       string    `json:"id"`
 	StartsAt time.Time `json:"starts_at"`
@@ -85,6 +95,39 @@ type Subscription struct {
 	ManagementUrls       SubscriptionManagementUrls   `json:"management_urls"`
 }
 
+type SubscriptionChangeResultAction string
+
+const (
+	SubscriptionChangeResultActionCredit = SubscriptionChangeResultAction("credit")
+	SubscriptionChangeResultActionCharge = SubscriptionChangeResultAction("charge")
+)
+
+type SubscriptionUpdateTransactionPreview struct {
+	BillingPeriod TimePeriod         `json:"billing_period"`
+	Details       TransactionDetails `json:"details"`
+	Adjustments   []any              `json:"adjustments"`
+}
+
+type CurrencyPriceAction struct {
+	Amount       string                         `json:"amount"`
+	CurrencyCode string                         `json:"currency_code"`
+	Action       SubscriptionChangeResultAction `json:"action"`
+}
+
+type SubscriptionUpdatePreviewSummary struct {
+	Credit CurrencyPrice       `json:"credit"`
+	Charge CurrencyPrice       `json:"charge"`
+	Result CurrencyPriceAction `json:"result"`
+}
+
+type SubscriptionUpdatePreview struct {
+	NextBilledAt                time.Time                             `json:"next_billed_at"`
+	UpdateSummary               SubscriptionUpdatePreviewSummary      `json:"update_summary"`
+	RecurringTransactionDetails TransactionDetails                    `json:"recurring_transaction_details"`
+	NextTransaction             *SubscriptionUpdateTransactionPreview `json:"next_transaction"`
+	ImmediateTransaction        *SubscriptionUpdateTransactionPreview `json:"immediate_transaction"`
+}
+
 type ListSubscriptionsParams struct {
 	Ids            []string
 	CollectionMode string
@@ -127,6 +170,39 @@ type CancelSubscriptionParams struct {
 
 func (s *SubscriptionsService) Cancel(ctx context.Context, id string, params *CancelSubscriptionParams) (*Subscription, error) {
 	return postItem[Subscription](ctx, s.client, "subscriptions/"+id+"/cancel", params)
+}
+
+type UpdateSubscriptionItem struct {
+	PriceId  string `json:"price_id"`
+	Quantity int    `json:"quantity"`
+}
+
+type UpdateSubscriptionDiscount struct {
+	DiscountId    string                       `json:"id"`
+	EffectiveFrom SubscriptionEffectFromOption `json:"effective_from"`
+}
+
+type UpdateSubscriptionParams struct {
+	CustomerId           *string                      `json:"customer_id,omitempty"`
+	AddressId            *string                      `json:"address_id,omitempty"`
+	BusinessId           *string                      `json:"business_id,omitempty"`
+	CurrencyCode         *string                      `json:"currency_code,omitempty"`
+	NextBilledAt         *time.Time                   `json:"next_billed_at,omitempty"`
+	Discount             *UpdateSubscriptionDiscount  `json:"discount,omitempty"`
+	CollectionMode       *PaymentCollectionMode       `json:"collection_mode,omitempty"`
+	BillingDetails       *SubscriptionBillingDetails  `json:"billing_details,omitempty"`
+	ScheduledChange      *SubscriptionScheduledChange `json:"scheduled_change,omitempty"`
+	Items                *[]UpdateSubscriptionItem    `json:"items,omitempty"`
+	CustomData           *map[string]any              `json:"custom_data,omitempty"`
+	ProrationBillingMode ProrationBillingMode         `json:"proration_billing_mode"`
+}
+
+func (s *SubscriptionsService) PreviewUpdate(ctx context.Context, id string, params *UpdateSubscriptionParams) (*SubscriptionUpdatePreview, error) {
+	return patchItem[SubscriptionUpdatePreview](ctx, s.client, "subscriptions/"+id+"/preview", params)
+}
+
+func (s *SubscriptionsService) Update(ctx context.Context, id string, params *UpdateSubscriptionParams) (*Subscription, error) {
+	return patchItem[Subscription](ctx, s.client, "subscriptions/"+id, params)
 }
 
 func (s *SubscriptionsService) RemoveScheduledCancellation(ctx context.Context, id string) (*Subscription, error) {
