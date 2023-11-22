@@ -37,21 +37,22 @@ func (c *Client) ParseWebhook(req *http.Request) (*WebhookEvent, error) {
 		return nil, providedErr
 	}
 
-	body, bodyErr := getBody(req)
-	if bodyErr != nil {
-		return nil, fmt.Errorf("failed to read body: %w", bodyErr)
+	bodyReader := io.LimitReader(req.Body, MaxWebhookBodyBytes)
+	body, readErr := io.ReadAll(bodyReader)
+	if readErr != nil {
+		return nil, fmt.Errorf("failed to read body: %w", readErr)
 	}
 
 	if validationErr := sig.validate(c.webhookKey, body); validationErr != nil {
-		return nil, validationErr
+		return nil, fmt.Errorf("failed to validate request: %w", validationErr)
 	}
 
-	var event *WebhookEvent
-	if jsonErr := json.Unmarshal(body, event); jsonErr != nil {
+	var event WebhookEvent
+	if jsonErr := json.Unmarshal(body, &event); jsonErr != nil {
 		return nil, jsonErr
 	}
 
-	return event, nil
+	return &event, nil
 }
 
 type signature struct {
@@ -62,8 +63,11 @@ type signature struct {
 func (w *signature) validate(key []byte, body []byte) error {
 	hash := hmac.New(sha256.New, key)
 	prefix := []byte(w.timestamp + ":")
-	if _, wErr := hash.Write(append(prefix, body...)); wErr != nil {
-		return fmt.Errorf("failed to create hash: %w", wErr)
+	if _, pfxErr := hash.Write(prefix); pfxErr != nil {
+		return fmt.Errorf("failed to write hash prefix: %w", pfxErr)
+	}
+	if _, bodyErr := hash.Write(body); bodyErr != nil {
+		return fmt.Errorf("failed to write hash body: %w", bodyErr)
 	}
 	sum := hash.Sum(nil)
 	if hex.EncodeToString(sum) != w.providedSignature {
@@ -86,13 +90,4 @@ func getWebhookSignature(raw string) (*signature, error) {
 		timestamp:         ts[1],
 		providedSignature: h1[1],
 	}, nil
-}
-
-func getBody(req *http.Request) ([]byte, error) {
-	reqBody, bodyErr := req.GetBody()
-	if bodyErr != nil {
-		return nil, fmt.Errorf("failed to create copy: %w", bodyErr)
-	}
-	body, readErr := io.ReadAll(io.LimitReader(reqBody, MaxWebhookBodyBytes))
-	return body, errors.Join(readErr, reqBody.Close())
 }
