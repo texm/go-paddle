@@ -130,6 +130,7 @@ type SubscriptionUpdatePreview struct {
 
 type ListSubscriptionsParams struct {
 	Ids            []string
+	CustomerIds    []string
 	CollectionMode string
 	Status         []Status
 	Search         string
@@ -142,8 +143,11 @@ func (s *SubscriptionsService) List(ctx context.Context, params *ListSubscriptio
 		if len(params.Ids) > 0 {
 			q.Set("id", strings.Join(params.Ids, ","))
 		}
+		if len(params.CustomerIds) > 0 {
+			q.Set("customer_id", strings.Join(params.CustomerIds, ","))
+		}
 		if len(params.Status) > 0 {
-			q.Set("status", strings.Join(params.Ids, ","))
+			q.Set("status", strings.Join(toStringSlice(params.Status), ","))
 		}
 		if len(params.Search) > 0 {
 			q.Set("search", params.Search)
