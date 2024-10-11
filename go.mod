@@ -1,3 +1,3 @@
-module github.com/twohundreds/go-paddle
+module github.com/texm/go-paddle
 
 go 1.21
